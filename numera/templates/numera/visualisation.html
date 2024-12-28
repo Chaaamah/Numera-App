@@ -1,0 +1,50 @@
+{% extends 'numera/base.html' %}
+{% block content %}
+<h1>Visualisation des Données</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+        <label for="plot_type">Type de graphique :</label>
+        <select name="plot_type" id="plot_type" class="form-control" required onchange="toggleColumns()">
+            <option value="bar">Bar Plot</option>
+            <option value="kde">KDE</option>
+            <option value="hist">Histogram</option>
+            <option value="line">Line Plot</option>
+            <option value="box">Box Plot</option>
+            <option value="scatter">Scatter Plot</option>
+            <option value="heatmap">Heatmap</option>
+            <option value="pie">Pie Chart</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="column">Colonne :</label>
+        <select name="column" id="column" class="form-control" required>
+            {% for col in columns %}
+            <option value="{{ col }}">{{ col }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-success">Visualiser</button>
+</form>
+{% if plot_url %}
+<div class="mt-4">
+    <img src="data:image/png;base64,{{ plot_url }}" alt="Graphique" class="img-fluid">
+</div>
+{% endif %}
+<script>
+    function toggleColumns() {
+        const plotType = document.getElementById('plot_type').value;
+        const columnSelect = document.getElementById('column');
+        columnSelect.innerHTML = '';
+
+        const columns = plotType === 'bar' || plotType === 'pie' ? {{ categorical_columns|safe }} : {{ numeric_columns|safe }};
+
+        columns.forEach(col => {
+            const option = document.createElement('option');
+            option.value = col;
+            option.textContent = col;
+            columnSelect.appendChild(option);
+        });
+    }
+</script>
+{% endblock %}

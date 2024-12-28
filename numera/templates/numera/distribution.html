@@ -1,0 +1,61 @@
+{% extends 'numera/base.html' %}
+{% block content %}
+<h1>Distributions</h1>
+
+{% if message %}
+<div class="alert alert-warning">
+    {{ message }}
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+        <label for="column">Colonne numérique :</label>
+        <select name="column" id="column" class="form-control" required>
+            {% for col in numeric_columns %}
+            <option value="{{ col }}">{{ col }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="distribution_type">Type de distribution :</label>
+        <select name="distribution_type" id="distribution_type" class="form-control" required>
+            <option value="bernoulli">Bernoulli</option>
+            <option value="binomial">Binomiale</option>
+            <option value="poisson">Poisson</option>
+            <option value="uniform">Uniforme</option>
+            <option value="exponential">Exponentielle</option>
+            <option value="normal">Normale</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="n">Paramètre n :</label>
+        <input type="number" name="n" id="n" class="form-control" value="10">
+    </div>
+    <div class="form-group">
+        <label for="p">Paramètre p :</label>
+        <input type="number" step="0.01" name="p" id="p" class="form-control" value="0.5">
+    </div>
+    <div class="form-group">
+        <label for="lambda">Paramètre λ :</label>
+        <input type="number" step="0.01" name="lambda" id="lambda" class="form-control" value="1.0">
+    </div>
+    <div class="form-group">
+        <label for="a">Paramètre a :</label>
+        <input type="number" step="0.01" name="a" id="a" class="form-control" value="0">
+    </div>
+    <div class="form-group">
+        <label for="b">Paramètre b :</label>
+        <input type="number" step="0.01" name="b" id="b" class="form-control" value="1">
+    </div>
+    <button type="submit" class="btn btn-primary">Générer</button>
+</form>
+
+{% if plot_url %}
+<div class="mt-4">
+    <h4>Visualisation :</h4>
+    <img src="data:image/png;base64,{{ plot_url }}" class="img-fluid" alt="Graphique de la distribution">
+</div>
+{% endif %}
+{% endblock %}
