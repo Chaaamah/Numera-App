@@ -1,0 +1,281 @@
+{% extends "numera/base.html" %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Left Column: User Info -->
+    <div class="profile-section user-info">
+        <div class="profile-header">
+            <div class="avatar-wrapper">
+                <div class="avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h2>{{ user.username }}</h2>
+                <p class="user-status">Étudiant</p>
+            </div>
+        </div>
+
+        <div class="info-list">
+            <div class="info-item">
+                <i class="fas fa-envelope"></i>
+                <div class="info-content">
+                    <label>Email</label>
+                    <span>{{ user.email }}</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-calendar-alt"></i>
+                <div class="info-content">
+                    <label>Membre depuis</label>
+                    <span>{{ user.date_joined|date:"d/m/Y" }}</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-chart-line"></i>
+                <div class="info-content">
+                    <label>Total des analyses</label>
+                    <span>{{ visualizations_count|add:distributions_count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Statistics & Activities -->
+    <div class="profile-section activity-info">
+        <div class="section-header">
+            <h3>Statistiques</h3>
+        </div>
+
+        <div class="activity-grid">
+            <div class="activity-card">
+                <div class="activity-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="activity-content">
+                    <h4>Visualisations</h4>
+                    <p>{{ visualizations_count }} graphiques créés</p>
+                </div>
+            </div>
+
+            <div class="activity-card">
+                <div class="activity-icon">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <div class="activity-content">
+                    <h4>Distributions</h4>
+                    <p>{{ distributions_count }} analyses effectuées</p>
+                </div>
+            </div>
+
+            <div class="activity-card">
+                <div class="activity-icon">
+                    <i class="fas fa-table"></i>
+                </div>
+                <div class="activity-content">
+                    <h4>Jeux de données</h4>
+                    <p>{{ datasets_count }} fichiers importés</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="recent-activities">
+            <h3>Activités Récentes</h3>
+            {% if recent_activities %}
+                <div class="timeline">
+                    {% for activity in recent_activities %}
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            {% if activity.activity_type == 'visualization' %}
+                                <i class="fas fa-chart-bar"></i>
+                            {% elif activity.activity_type == 'distribution' %}
+                                <i class="fas fa-calculator"></i>
+                            {% else %}
+                                <i class="fas fa-table"></i>
+                            {% endif %}
+                        </div>
+                        <div class="timeline-content">
+                            <p>{{ activity.description }}</p>
+                            <small>{{ activity.timestamp|timesince }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="no-activity">Aucune activité récente</p>
+            {% endif %}
+        </div>
+
+        <div class="quick-actions">
+            <h3>Actions Rapides</h3>
+            <div class="action-buttons">
+                <a href="{% url 'visualisation' %}" class="action-btn">
+                    <i class="fas fa-plus"></i>
+                    Nouvelle Visualisation
+                </a>
+                <a href="{% url 'distribution' %}" class="action-btn">
+                    <i class="fas fa-chart-line"></i>
+                    Nouvelle Distribution
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.profile-container {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.profile-section {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.profile-header {
+    background: var(--gradient);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.avatar-wrapper {
+    margin-bottom: 1rem;
+}
+
+.avatar {
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.avatar i {
+    font-size: 3rem;
+}
+
+.user-status {
+    opacity: 0.8;
+    font-size: 0.9rem;
+}
+
+.info-list {
+    padding: 2rem;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-item i {
+    color: var(--primary);
+    font-size: 1.2rem;
+    width: 24px;
+}
+
+.info-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-content label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.2rem;
+}
+
+.activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 2rem;
+}
+
+.activity-card {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+}
+
+.activity-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--hover-shadow);
+}
+
+.activity-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--gradient);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.activity-content h4 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.activity-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.quick-actions {
+    padding: 2rem;
+    border-top: 1px solid #eee;
+}
+
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--gradient);
+    color: white;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hover-shadow);
+    color: white;
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .profile-container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

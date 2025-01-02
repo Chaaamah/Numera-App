@@ -1,0 +1,366 @@
+{% extends 'numera/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Panel: Data Selection -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Data Selection</h6>
+                </div>
+                <div class="card-body">
+                    <form id="testForm">
+                        {% csrf_token %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3">
+                                <h6 class="m-0 font-weight-bold text-primary">File Upload</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="dropZone" class="upload-zone">
+                                    <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                                    <p>Drag & Drop your CSV file here or</p>
+                                    <input type="file" id="csvFile" accept=".csv" class="file-input" />
+                                    <label for="csvFile" class="btn btn-primary">Choose File</label>
+                                </div>
+                                <div id="fileInfo" class="mt-3 hidden">
+                                    <p>Selected file: <span id="fileName"></span></p>
+                                </div>
+                                <div id="previewTable" class="mt-3"></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="testType" data-toggle="tooltip" title="Select the type of statistical test to perform">
+                                Test Type <i class="fas fa-question-circle text-info"></i>
+                            </label>
+                            <select class="form-control" id="testType" name="test_type" required>
+                                <option value="" disabled selected>Choose test type...</option>
+                                <option value="z-test">Z-Test (Known σ)</option>
+                                <option value="t-test">T-Test (Unknown σ)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="columnSelect">Data Column</label>
+                            <select class="form-control" id="columnSelect" name="column" required>
+                                <option value="" disabled selected>Select data...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="alpha">Significance Level (α)</label>
+                            <input type="number" class="form-control" id="alpha" name="alpha"
+                                   value="0.05" min="0.01" max="0.99" step="0.01" required>
+                        </div>
+
+                        <div class="form-group z-param hidden">
+                            <label for="sigma">Population σ</label>
+                            <input type="number" class="form-control" id="sigma" name="sigma"
+                                   min="0" step="0.01">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span class="button-text">Run Test</span>
+                            <span class="spinner-border spinner-border-sm hidden" role="status"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Results -->
+        <div class="col-md-8">
+            <div id="resultsPanel" class="card shadow mb-4 hidden">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Test Results</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <h4>Test Statistic</h4>
+                                <p id="testStat" class="h2 mb-0">-</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <h4>P-Value</h4>
+                                <p id="pValue" class="h2 mb-0">-</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <h4>Decision</h4>
+                                <p id="decision" class="h2 mb-0">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div id="plotArea"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Error</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        padding: 1.25rem;
+        border-radius: 0.35rem;
+        background: #f8f9fc;
+        text-align: center;
+    }
+    .spinner-border {
+        margin-left: 0.5rem;
+    }
+    .hidden {
+        display: none !important;
+    }
+    .upload-zone {
+        border: 2px dashed #4e73df;
+        border-radius: 5px;
+        padding: 2rem;
+        text-align: center;
+        background: #f8f9fc;
+        transition: all 0.3s ease;
+    }
+
+    .upload-zone.drag-over {
+        background: #e8eeff;
+        border-color: #2e59d9;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    .upload-zone p {
+        margin: 1rem 0;
+        color: #666;
+    }
+
+    .upload-zone.loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('csvFile');
+        const columnSelect = document.getElementById('columnSelect');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const testForm = document.getElementById('testForm');
+        const testType = document.getElementById('testType');
+        const columnSelect = document.getElementById('columnSelect');
+        const sigmaField = document.querySelector('.z-param');
+        const resultsPanel = document.getElementById('resultsPanel');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+    
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    
+        // Handle drag-drop visual feedback
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('drag-over');
+            });
+        });
+    
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('drag-over');
+            });
+        });
+    
+        // Handle file drop
+        dropZone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files[0];
+            handleFileUpload(file);
+        });
+    
+        // Handle file input change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            handleFileUpload(file);
+        });
+    
+        async function handleFileUpload(file) {
+            if (!file) return;
+            
+            if (!file.name.endsWith('.csv')) {
+                showError('Please upload a CSV file');
+                return;
+            }
+    
+            const formData = new FormData();
+            formData.append('csv_file', file);
+    
+            try {
+                dropZone.classList.add('loading');
+                const response = await fetch('/upload-csv/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+    
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+    
+                // Update UI
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileInfo').classList.remove('hidden');
+                document.getElementById('previewTable').innerHTML = data.preview;
+                
+                // Update column selection
+                columnSelect.innerHTML = '<option value="" selected disabled>Select column...</option>';
+                data.columns.forEach(column => {
+                    columnSelect.add(new Option(column, column));
+                });
+    
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                dropZone.classList.remove('loading');
+            }
+        }
+   
+
+    // Handle test type changes
+    testType.addEventListener('change', () => {
+        const isZTest = testType.value === 'z-test';
+        sigmaField.classList.toggle('hidden', !isZTest);
+        document.getElementById('sigma').required = isZTest;
+    });
+
+    // Form submission handler
+    testForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = testForm.querySelector('button[type="submit"]');
+        const spinner = submitBtn.querySelector('.spinner-border');
+        const buttonText = submitBtn.querySelector('.button-text');
+
+        try {
+            // Show loading state
+            submitBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            buttonText.classList.add('hidden');
+
+            // Validate form data
+            const formData = new FormData(testForm);
+            validateFormData(formData);
+
+            // Send AJAX request
+            const response = await fetch('/hypothesis/calculate/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(Object.fromEntries(formData))
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Test calculation failed');
+            }
+
+            // Update results
+            updateResults(data);
+            resultsPanel.classList.remove('hidden');
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            // Reset loading state
+            submitBtn.disabled = false;
+            spinner.classList.add('hidden');
+            buttonText.classList.remove('hidden');
+        }
+    });
+
+    function validateFormData(formData) {
+        const alpha = parseFloat(formData.get('alpha'));
+        if (isNaN(alpha) || alpha <= 0 || alpha >= 1) {
+            throw new Error('Significance level must be between 0 and 1');
+        }
+
+        if (!formData.get('column')) {
+            throw new Error('Please select a data column');
+        }
+
+        if (formData.get('test_type') === 'z-test') {
+            const sigma = parseFloat(formData.get('sigma'));
+            if (isNaN(sigma) || sigma <= 0) {
+                throw new Error('Population standard deviation must be positive');
+            }
+        }
+    }
+
+    function updateResults(data) {
+        document.getElementById('testStat').textContent = 
+            data.test_statistic.toFixed(4);
+        document.getElementById('pValue').textContent = 
+            data.p_value.toFixed(4);
+        document.getElementById('decision').textContent = 
+            data.p_value <= parseFloat(document.getElementById('alpha').value)
+                ? 'Reject H₀'
+                : 'Fail to reject H₀';
+    }
+
+    function showError(message) {
+        const modal = new bootstrap.Modal(document.getElementById('errorModal'));
+        document.getElementById('errorMessage').textContent = message;
+        modal.show();
+    }
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(
+        document.querySelectorAll('[data-toggle="tooltip"]')
+    );
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+<script/>

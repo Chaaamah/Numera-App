@@ -1,0 +1,366 @@
+{% extends "numera/base.html" %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <!-- Marketing Side -->
+    <div class="marketing-side">
+        <div class="content-wrapper">
+            <div class="brand-section">
+                <h1>La Statistique Simplifiée</h1>
+                <p class="lead">Pour vos projets académiques et recherches</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Analyses Statistiques</h3>
+                        <p>Moyenne, variance, tests statistiques</p>
+                    </div>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Visualisation</h3>
+                        <p>Histogrammes, boîtes à moustaches</p>
+                    </div>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-dice"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Distributions</h3>
+                        <p>Normale, Poisson, Binomiale</p>
+                    </div>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-table"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Import CSV</h3>
+                        <p>Analysez vos jeux de données</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Side -->
+    <div class="login-side">
+        <div class="login-container">
+            <div class="login-header">
+                <h2>Créer un compte</h2>
+                <p>Pour commencer vos analyses statistiques</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form method="post" class="login-form">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        {% render_field form.username class="form-input" placeholder='Nom utilisateur' %}
+                    </div>
+                    {% if form.username.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.username.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        {% render_field form.email class="form-input" placeholder='Adresse email' type="email" %}
+                    </div>
+                    {% if form.email.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.email.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        {% render_field form.password1 class="form-input" placeholder='Mot de passe' %}
+                    </div>
+                    <div class="password-strength mt-2">
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Force du mot de passe</small>
+                    </div>
+                    {% if form.password1.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.password1.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        {% render_field form.password2 class="form-input" placeholder='Confirmer le mot de passe' %}
+                    </div>
+                    {% if form.password2.errors %}
+                    <div class="error-feedback">
+                        {% for error in form.password2.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    Créer mon compte
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+
+                <div class="form-footer">
+                    <p>Déjà membre?</p>
+                    <a href="{% url 'login' %}" class="register-link">Se connecter</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background: #f8f9fa;
+}
+
+.marketing-side {
+    display: none;
+    flex: 2;
+    background: linear-gradient(135deg, #6B4CE6 0%, #4CE6B4 100%);
+    padding: 4rem;
+    color: white;
+}
+
+@media (min-width: 992px) {
+    .marketing-side {
+        display: flex;
+        align-items: center;
+    }
+}
+
+.content-wrapper {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.brand-section {
+    margin-bottom: 4rem;
+    text-align: center;
+}
+
+.brand-section h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+}
+
+.feature {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 2rem;
+    transition: transform 0.3s ease;
+}
+
+.feature:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.login-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h2 {
+    font-weight: 700;
+    color: #2d3436;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper i {
+    position: absolute;
+    left: 1rem;
+    color: #6B4CE6;
+}
+
+.form-input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #6B4CE6;
+    box-shadow: 0 0 0 4px rgba(107, 76, 230, 0.1);
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(45deg, #6B4CE6, #4CE6B4);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(107, 76, 230, 0.2);
+}
+
+.form-footer {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.register-link {
+    color: #6B4CE6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.register-link:hover {
+    color: #4CE6B4;
+}
+
+.password-strength {
+    margin-top: 0.5rem;
+}
+
+.progress {
+    background-color: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+    background: linear-gradient(45deg, #6B4CE6, #4CE6B4);
+}
+
+.error-feedback {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    padding-left: 1rem;
+}
+
+.alert {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+}
+
+.alert-danger {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    color: #dc3545;
+}
+
+.alert ul {
+    padding-left: 1.25rem;
+    margin: 0;
+}
+</style>
+
+<script>
+document.querySelector('[name="password1"]').addEventListener('input', function(e) {
+    const password = e.target.value;
+    const strength = calculatePasswordStrength(password);
+    const progressBar = document.querySelector('.progress-bar');
+    progressBar.style.width = strength + '%';
+});
+
+function calculatePasswordStrength(password) {
+    let strength = 0;
+    if (password.length > 8) strength += 25;
+    if (password.match(/[A-Z]/)) strength += 25;
+    if (password.match(/[0-9]/)) strength += 25;
+    if (password.match(/[^A-Za-z0-9]/)) strength += 25;
+    return strength;
+}
+</script>
+{% endblock %}

@@ -1,69 +1,140 @@
 {% extends 'numera/base.html' %}
+
 {% block content %}
-<h1>Accueil</h1>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <div class="form-group">
-        <label for="file">Charger un fichier CSV :</label>
-        <input type="file" name="file" id="file" class="form-control" required>
+<div class="dataset-container">
+    <!-- Upload Section -->
+    <div class="upload-section card">
+        <div class="card-body">
+            <h2><i class="fas fa-upload"></i> Importer des données</h2>
+            <p class="text-muted">Formats supportés: CSV</p>
+            
+            <form method="post" enctype="multipart/form-data" class="dropzone-form">
+                {% csrf_token %}
+                <div class="upload-zone" id="uploadZone">
+                    <input type="file" name="file" id="file" class="file-input" accept=".csv" required>
+                    <div class="upload-content">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Glissez votre fichier ici ou cliquez pour sélectionner</p>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">
+                    <i class="fas fa-upload"></i> Charger le fichier
+                </button>
+            </form>
+        </div>
     </div>
-    <button type="submit" class="btn btn-primary">Charger</button>
-</form>
 
-{% if columns %}
-<form method="post" class="mt-4">
-    {% csrf_token %}
-    <div class="form-group">
-        <label for="operation">Type d'opération :</label>
-        <select name="operation" id="operation" class="form-control" required onchange="toggleColumns()">
-            <option value="mean">Moyenne</option>
-            <option value="median">Médiane</option>
-            <option value="mode">Mode</option>
-            <option value="std">Écart-Type</option>
-            <option value="variance">Variance</option>
-            <option value="range">Étendue</option>
-        </select>
+    {% if columns %}
+    <!-- Statistics Selection -->
+    <div class="statistics-section card mt-4">
+        <div class="card-body">
+            <h3><i class="fas fa-calculator"></i> Calculer des statistiques</h3>
+            <form method="post" class="statistics-form">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="operation">Opération:</label>
+                        <select name="operation" id="operation" class="form-control custom-select" required>
+                            <option value="">Sélectionnez une opération</option>
+                            <option value="mean">Moyenne</option>
+                            <option value="median">Médiane</option>
+                            <option value="mode">Mode</option>
+                            <option value="std">Écart-type</option>
+                            <option value="variance">Variance</option>
+                            <option value="range">Étendue</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="column">Colonne:</label>
+                        <select name="column" id="column" class="form-control custom-select" required>
+                            <option value="">Sélectionnez une colonne</option>
+                            {% for column in numeric_columns %}
+                                <option value="{{ column }}" class="numeric">{{ column }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-calculator"></i> Calculer
+                </button>
+            </form>
+        </div>
     </div>
-    <div class="form-group">
-        <label for="column">Colonne :</label>
-        <select name="column" id="column" class="form-control" required>
-            {% for col in numeric_columns %}
-            <option value="{{ col }}" class="numeric">{{ col }}</option>
-            {% endfor %}
-            {% for col in categorical_columns %}
-            <option value="{{ col }}" class="categorical">{{ col }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <button type="submit" class="btn btn-success">Calculer</button>
-</form>
-{% endif %}
 
-{% if result is not None %}
-<div class="mt-4 alert alert-info">
-    <h4>Résultat :</h4>
-    <p><strong>{{ operation|title }}</strong> de la colonne <strong>{{ column }}</strong> : {{ result }}</p>
+    <!-- Results Display -->
+    {% if result %}
+    <div class="result-section card mt-4">
+        <div class="card-body text-center">
+            <h3>Résultat</h3>
+            <div class="result-display">
+                <div class="operation-info">
+                    <span class="operation-name">{{ operation|title }}</span>
+                    <span class="column-name">{{ column }}</span>
+                </div>
+                <div class="result-value">{{ result|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
 </div>
-{% endif %}
 
-<script>
-    function toggleColumns() {
-        const operation = document.getElementById('operation').value;
-        const columnOptions = document.getElementById('column').options;
+<style>
+.dataset-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
 
-        // Afficher ou masquer les colonnes en fonction de l'opération sélectionnée
-        for (let option of columnOptions) {
-            if (operation === "mode") {
-                // Si l'opération est "Mode", afficher uniquement les colonnes qualitatives
-                option.style.display = option.classList.contains('categorical') ? 'block' : 'none';
-            } else {
-                // Sinon, afficher uniquement les colonnes quantitatives
-                option.style.display = option.classList.contains('numeric') ? 'block' : 'none';
-            }
-        }
+.upload-zone {
+    border: 2px dashed var(--primary);
+    border-radius: 10px;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+    background: rgba(107, 76, 230, 0.05);
+}
 
-        // Réinitialiser la sélection de la colonne
-        document.getElementById('column').selectedIndex = 0;
-    }
-</script>
+.upload-zone:hover {
+    border-color: var(--secondary);
+    background: rgba(107, 76, 230, 0.1);
+}
+
+.result-display {
+    background: var(--gradient);
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.operation-info {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.operation-name {
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.column-name {
+    opacity: 0.8;
+}
+
+.result-value {
+    font-size: 3rem;
+    font-weight: bold;
+}
+
+.custom-select {
+    transition: all 0.3s ease;
+}
+
+.custom-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(107, 76, 230, 0.25);
+}
+</style>
 {% endblock %}

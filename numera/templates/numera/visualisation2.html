@@ -1,0 +1,631 @@
+{% extends 'numera/base.html' %}
+
+{% block content %}
+<div class="viz-container">
+    <!-- Debug Panel -->
+    <div id="debugPanel" class="debug-panel">
+        <div class="debug-header">
+            <h4>Debug Info</h4>
+            <button onclick="clearDebug()">Clear</button>
+        </div>
+        <div id="debugOutput" class="debug-output"></div>
+    </div>
+
+    <!-- Error Display -->
+    <div id="errorAlert" class="error-alert hidden">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="errorMessage"></span>
+        <button onclick="closeError()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Header -->
+    <div class="section-header">
+        <h2><i class="fas fa-chart-area"></i> Visualisation Avancée</h2>
+        <p class="subtitle">Sélectionnez un type de graphique et les colonnes à visualiser</p>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+        <!-- Plot Types -->
+        <div class="plot-types card">
+            <h3>Types de graphiques</h3>
+            <div class="plot-grid">
+                {% for type, info in plot_types.items %}
+                <div class="plot-option" 
+                     data-type="{{ type }}"
+                     data-min="{{ info.min_cols }}"
+                     data-max="{{ info.max_cols }}">
+                    <div class="plot-icon">
+                        <i class="fas fa-{{ info.icon }}"></i>
+                    </div>
+                    <div class="plot-info">
+                        <h4>{{ info.name }}</h4>
+                        <p>{{ info.description }}</p>
+                        <span class="cols-required">
+                            {% if info.min_cols == info.max_cols %}
+                                {{ info.min_cols }} colonne(s)
+                            {% else %}
+                                {{ info.min_cols }}-{{ info.max_cols }} colonnes
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Configuration Form -->
+        <div class="config-panel card">
+            <form id="vizForm">
+                {% csrf_token %}
+                <input type="hidden" name="plot_type" id="selectedPlot">
+                
+                <div class="form-group">
+                    <label>Variables à visualiser</label>
+                    <div class="column-selector">
+                        <div class="selector-controls">
+                            <button type="button" onclick="selectAll()" class="btn-control">
+                                <i class="fas fa-check-square"></i> Tout sélectionner
+                            </button>
+                            <button type="button" onclick="deselectAll()" class="btn-control">
+                                <i class="fas fa-square"></i> Tout désélectionner
+                            </button>
+                        </div>
+                        <div class="column-list">
+                            {% for column in columns %}
+                            <div class="column-item">
+                                <div class="column-select">
+                                    <input type="checkbox" 
+                                           name="columns" 
+                                           value="{{ column }}" 
+                                           id="col_{{ forloop.counter }}"
+                                           onchange="handleColumnChange()">
+                                    <label for="col_{{ forloop.counter }}">{{ column }}</label>
+                                </div>
+                                <input type="color" 
+                                       name="colors" 
+                                       id="color_{{ forloop.counter }}"
+                                       value="#{{ forloop.counter|add:"100"|stringformat:'06x' }}"
+                                       data-column="{{ column }}"
+                                       class="color-picker hidden"
+                                       onchange="handleColorChange(this)">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div id="columnHelp" class="help-text"></div>
+                    </div>
+                </div>
+        
+                <button type="submit" class="btn-generate" disabled>
+                    <span class="btn-text">Générer</span>
+                    <div class="loader hidden"></div>
+                </button>
+            </form>
+        </div>
+
+        <!-- Results Display -->
+        <div id="resultPanel" class="results-panel card hidden">
+            <div class="plot-container">
+                <img id="plotImage" alt="Visualization">
+            </div>
+            <div class="plot-actions">
+                <button onclick="downloadPlot()" class="btn-action">
+                    <i class="fas fa-download"></i> Télécharger
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function generateColor(index, total) {
+        const hue = (index * 360) / total;
+        return `hsl(${hue}, 70%, 50%)`;
+    }
+    
+    function handleColorChange(picker) {
+        const column = picker.dataset.column;
+        debug('Color changed', { column, color: picker.value });
+    }
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize UI elements
+    const vizForm = document.getElementById('vizForm');
+    const debugOutput = document.getElementById('debugOutput');
+    const errorAlert = document.getElementById('errorAlert');
+
+    if (!vizForm || !debugOutput || !errorAlert) {
+        console.error('Required elements not found');
+        return;
+    }
+
+    // Debug utilities
+    function debug(message, data = null) {
+        const time = new Date().toLocaleTimeString();
+        const text = data ? `${message}: ${JSON.stringify(data)}` : message;
+        debugOutput.innerHTML += `<div>[${time}] ${text}</div>`;
+        debugOutput.scrollTop = debugOutput.scrollHeight;
+        console.log(message, data);
+    }
+
+    function clearDebug() {
+        debugOutput.innerHTML = '';
+    }
+
+    // Error handling
+    function showError(message) {
+        debug('Error occurred', message);
+        document.getElementById('errorMessage').textContent = message;
+        errorAlert.classList.remove('hidden');
+    }
+
+    function closeError() {
+        errorAlert.classList.add('hidden');
+    }
+
+    // Column validation
+    function validateColumns(min, max) {
+        const selected = document.querySelectorAll('input[name="columns"]:checked');
+        const help = document.getElementById('columnHelp');
+        const btn = document.querySelector('.btn-generate');
+    
+        if (!help || !btn) return;
+    
+        const isValid = selected.length >= min && selected.length <= max;
+        debug('Column validation', { min, max, selectedCount: selected.length, isValid });
+    
+        // Update color pickers
+        if (selected.length > 1) {
+            Array.from(selected).forEach((checkbox, index) => {
+                const colorPicker = document.querySelector(`input[data-column="${checkbox.value}"]`);
+                if (colorPicker) {
+                    colorPicker.value = generateColor(index, selected.length);
+                    colorPicker.classList.remove('hidden');
+                }
+            });
+        } else {
+            document.querySelectorAll('.color-picker').forEach(picker => 
+                picker.classList.add('hidden'));
+        }
+    
+        help.textContent = `Sélectionnez ${min}${min === max ? '' : '-' + max} colonne(s)`;
+        help.className = `help-text ${isValid ? 'valid' : 'invalid'}`;
+        btn.disabled = !isValid;
+    }
+// Update form submission to include colors
+vizForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    debug('Form submitted');
+    
+    const formData = new FormData(e.target);
+    const selectedColumns = formData.getAll('columns');
+    
+    // Add colors for selected columns
+    if (selectedColumns.length > 1) {
+        const colors = {};
+        selectedColumns.forEach(column => {
+            const colorPicker = document.querySelector(`input[data-column="${column}"]`);
+            if (colorPicker) {
+                colors[column] = colorPicker.value;
+            }
+        });
+        formData.append('colors', JSON.stringify(colors));
+    }
+    
+    // ...rest of submission code...
+});
+
+    // Column selection handlers
+    window.selectAll = function() {
+        document.querySelectorAll('input[name="columns"]').forEach(cb => cb.checked = true);
+        handleColumnChange();
+    };
+
+    window.deselectAll = function() {
+        document.querySelectorAll('input[name="columns"]').forEach(cb => cb.checked = false);
+        handleColumnChange();
+    };
+
+    window.handleColumnChange = function() {
+        const active = document.querySelector('.plot-option.active');
+        if (active) {
+            validateColumns(
+                parseInt(active.dataset.min),
+                parseInt(active.dataset.max)
+            );
+        }
+    };
+
+    // Plot selection
+    document.querySelectorAll('.plot-option').forEach(option => {
+        option.addEventListener('click', () => {
+            debug('Plot selected', option.dataset.type);
+            
+            document.querySelectorAll('.plot-option').forEach(opt => 
+                opt.classList.remove('active'));
+            option.classList.add('active');
+            
+            const type = option.dataset.type;
+            document.getElementById('selectedPlot').value = type;
+            validateColumns(
+                parseInt(option.dataset.min),
+                parseInt(option.dataset.max)
+            );
+        });
+    });
+
+    // Form submission
+    vizForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        debug('Form submitted');
+        
+        const formData = new FormData(e.target);
+        debug('Form data', {
+            plot_type: formData.get('plot_type'),
+            columns: formData.getAll('columns')
+        });
+        
+        const btnText = vizForm.querySelector('.btn-text');
+        const loader = vizForm.querySelector('.loader');
+        
+        if (!btnText || !loader) return;
+        
+        btnText.classList.add('hidden');
+        loader.classList.remove('hidden');
+        
+        try {
+            debug('Sending request');
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            debug('Response status', response.status);
+            const data = await response.json();
+            debug('Response data', data);
+            
+            if (data.success) {
+                const plotImage = document.getElementById('plotImage');
+                const resultPanel = document.getElementById('resultPanel');
+                
+                if (plotImage && resultPanel) {
+                    plotImage.src = 'data:image/png;base64,' + data.plot;
+                    resultPanel.classList.remove('hidden');
+                    closeError();
+                }
+            } else {
+                throw new Error(data.error || 'Erreur de génération du graphique');
+            }
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            btnText.classList.remove('hidden');
+            loader.classList.add('hidden');
+        }
+    });
+
+    // Plot download
+    window.downloadPlot = function() {
+        debug('Downloading plot');
+        const img = document.getElementById('plotImage');
+        if (!img) return;
+        
+        const link = document.createElement('a');
+        link.download = 'visualization.png';
+        link.href = img.src;
+        link.click();
+    };
+});
+</script>
+
+<style>
+    
+    .column-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+    }
+    
+    .color-picker {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .color-picker.hidden {
+        display: none;
+    }
+    .btn-generate {
+        width: 100%;
+        padding: 1rem;
+        background: var(--gradient);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        margin-top: 1rem;
+    }
+    
+    .btn-generate:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--hover-shadow);
+    }
+    
+    .btn-generate:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
+    .loader {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -10px 0 0 -10px;
+    }
+    .column-selector {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .selector-controls {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-control {
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-control:hover {
+        background: var(--bg-light);
+    }
+    
+    .column-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+    }
+    
+    .column-item {
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: background 0.2s ease;
+    }
+    
+    .column-item:hover {
+        background: var(--bg-light);
+    }
+    
+    .column-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+    .viz-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .section-header {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .section-header h2 {
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 1.5rem;
+    }
+    
+    .plot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .plot-option {
+        padding: 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid #eee;
+    }
+    
+    .plot-option:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--hover-shadow);
+    }
+    
+    .plot-option.active {
+        background: var(--gradient);
+        color: white;
+        border-color: transparent;
+    }
+    
+    .plot-icon {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--primary);
+    }
+    
+    .plot-option.active .plot-icon {
+        color: white;
+    }
+    
+    .plot-info h4 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+    }
+    
+    .plot-info p {
+        margin: 0 0 0.75rem;
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .cols-required {
+        display: inline-block;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        background: rgba(var(--primary-rgb), 0.1);
+        border-radius: 4px;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--text-dark);
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    
+    select[multiple] {
+        min-height: 200px;
+    }
+    
+    .btn-generate {
+        width: 100%;
+        padding: 1rem;
+        background: var(--gradient);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .btn-generate:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--hover-shadow);
+    }
+    
+    .btn-generate:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
+    .btn-action {
+        padding: 0.75rem 1.5rem;
+        background: var(--gradient);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--hover-shadow);
+    }
+    
+    .loader {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -10px 0 0 -10px;
+    }
+    
+    .results-panel {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .plot-container {
+        padding: 1rem;
+        background: var(--bg-light);
+        border-radius: 8px;
+    }
+    
+    .plot-container img {
+        width: 100%;
+        height: auto;
+        border-radius: 4px;
+    }
+    
+    .plot-actions {
+        padding: 1rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    
+    .help-text {
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        transition: color 0.2s ease;
+    }
+    
+    .help-text.valid {
+        color: var(--success);
+    }
+    
+    .help-text.invalid {
+        color: var(--danger);
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .hidden {
+        display: none;
+    }
+    </style>
+{% endblock %}

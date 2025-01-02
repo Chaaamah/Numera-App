@@ -1,0 +1,249 @@
+{% extends 'numera/base.html' %}
+
+{% block content %}
+<div class="distribution-container">
+    <div class="section-header">
+        <h2><i class="fas fa-chart-line"></i> Analyse des Distributions</h2>
+        <p class="helper-text">Analysez vos données avec différentes distributions statistiques</p>
+    </div>
+
+    <div class="analysis-card">
+        <form method="post" class="distribution-form">
+            {% csrf_token %}
+            
+            <!-- Data Selection -->
+            <div class="form-section">
+                <label for="column">Sélection des données:</label>
+                <select name="column" id="column" class="form-control" required>
+                    <option value="">Choisir une colonne</option>
+                    {% for col in numeric_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Distribution Selection -->
+            <div class="form-section">
+                <label for="distribution_type">Type de distribution:</label>
+                <select name="distribution_type" id="distribution_type" class="form-control" required>
+                    <option value="normal">Normale (Gaussienne)</option>
+                    <option value="uniform">Uniforme</option>
+                    <option value="exponential">Exponentielle</option>
+                    <option value="poisson">Poisson</option>
+                    <option value="binomial">Binomiale</option>
+                    <option value="bernoulli">Bernoulli</option>
+                </select>
+            </div>
+
+            <!-- Dynamic Parameters -->
+            <div class="parameters-container">
+                <!-- Normal Distribution -->
+                <div class="param-group" id="normal-params">
+                    <div class="param-info">
+                        <h4>Distribution Normale</h4>
+                        <p>Symétrique, en forme de cloche. Utile pour des données naturelles.</p>
+                        <ul>
+                            <li>μ (mu) : moyenne de la distribution</li>
+                            <li>σ (sigma) : écart-type</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Uniform Distribution -->
+                <div class="param-group hidden" id="uniform-params">
+                    <div class="param-info">
+                        <h4>Distribution Uniforme</h4>
+                        <p>Probabilité égale sur un intervalle.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="a">Minimum (a):</label>
+                        <input type="number" name="a" class="form-control" value="0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="b">Maximum (b):</label>
+                        <input type="number" name="b" class="form-control" value="1" step="0.1">
+                    </div>
+                </div>
+
+                <!-- Exponential Distribution -->
+                <div class="param-group hidden" id="exponential-params">
+                    <div class="param-info">
+                        <h4>Distribution Exponentielle</h4>
+                        <p>Modélise le temps entre événements.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="lambda">Lambda (λ):</label>
+                        <input type="number" name="lambda" class="form-control" value="1.0" step="0.1" min="0">
+                        <small>Taux d'événements par unité de temps</small>
+                    </div>
+                </div>
+
+                <!-- Poisson Distribution -->
+                <div class="param-group hidden" id="poisson-params">
+                    <div class="param-info">
+                        <h4>Distribution de Poisson</h4>
+                        <p>Événements rares sur une période fixe.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="lambda">Lambda (λ):</label>
+                        <input type="number" name="lambda" class="form-control" value="1.0" step="0.1" min="0">
+                        <small>Nombre moyen d'événements</small>
+                    </div>
+                </div>
+
+                <!-- Binomial Distribution -->
+                <div class="param-group hidden" id="binomial-params">
+                    <div class="param-info">
+                        <h4>Distribution Binomiale</h4>
+                        <p>Nombre de succès dans n essais indépendants.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="n">Nombre d'essais (n):</label>
+                        <input type="number" name="n" class="form-control" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="p">Probabilité de succès (p):</label>
+                        <input type="number" name="p" class="form-control" value="0.5" step="0.1" min="0" max="1">
+                    </div>
+                </div>
+
+                <!-- Bernoulli Distribution -->
+                <div class="param-group hidden" id="bernoulli-params">
+                    <div class="param-info">
+                        <h4>Distribution de Bernoulli</h4>
+                        <p>Un seul essai avec succès/échec.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="p">Probabilité de succès (p):</label>
+                        <input type="number" name="p" class="form-control" value="0.5" step="0.1" min="0" max="1">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-analyze">
+                <i class="fas fa-calculator"></i> Analyser la Distribution
+            </button>
+        </form>
+    </div>
+
+    {% if plot_url %}
+    <div class="results-card">
+        <h3>Résultats de l'analyse</h3>
+        <div class="plot-container">
+            <img src="data:image/png;base64,{{ plot_url }}" alt="Distribution Plot">
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.distribution-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.helper-text {
+    color: var(--text);
+    opacity: 0.8;
+}
+
+.analysis-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+
+.form-section {
+    margin-bottom: 1.5rem;
+}
+
+.parameters-container {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.param-group {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.param-info {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: rgba(107, 76, 230, 0.05);
+    border-radius: 8px;
+}
+
+.param-info h4 {
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.hidden {
+    display: none;
+}
+
+.btn-analyze {
+    background: var(--gradient);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-analyze:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hover-shadow);
+}
+
+.results-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.plot-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.plot-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+</style>
+
+<script>
+document.getElementById('distribution_type').addEventListener('change', function() {
+    // Hide all parameter groups
+    document.querySelectorAll('.param-group').forEach(group => {
+        group.classList.add('hidden');
+    });
+    
+    // Show selected distribution parameters
+    const selectedType = this.value;
+    const paramGroup = document.getElementById(`${selectedType}-params`);
+    if (paramGroup) {
+        paramGroup.classList.remove('hidden');
+    }
+});
+</script>
+{% endblock %}
