@@ -27,8 +27,8 @@ Numera App is a Django-based application designed for statistical data analysis 
 
 1. Clone the Repository:
    ```bash
-   git clone https://github.com/chaaamah/numera-app.git
-   cd numera-app
+   git clone https://github.com/chaaamah/Numera-Data-Analysis-App.git
+   cd Numera-Data-Analysis-App
    ```
 
 2. Set up a Virtual Environment:
@@ -82,11 +82,5 @@ Numera App is a Django-based application designed for statistical data analysis 
    git push origin feature-name
    ```
 4. Create a pull request.
-
----
-
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
 
 ---
